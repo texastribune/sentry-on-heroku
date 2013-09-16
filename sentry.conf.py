@@ -48,7 +48,7 @@ ADMINS = ()
 SENTRY_ADMINS = os.environ.get('ADMINS', '').split(',')
 
 # The threshold level to restrict emails to.
-SENTRY_MAIL_LEVEL = logging.WARNING
+SENTRY_MAIL_LEVEL = logging.ERROR
 
 # The prefix to apply to outgoing emails.
 EMAIL_SUBJECT_PREFIX = '[Sentry] '
