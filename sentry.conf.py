@@ -11,6 +11,8 @@ sys.path.append(ROOT)
 import dj_database_url
 DATABASES = {'default': dj_database_url.config(default='sqlite:///sentry.db')}
 
+ALLOWED_HOSTS = ['*', ]
+
 
 # Sentry configuration
 # --------------------
