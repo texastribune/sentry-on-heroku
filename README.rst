@@ -36,12 +36,12 @@ Follow the steps below to get Sentry up and running on Heroku:
 
         heroku config:set ALLOWED_HOSTS=*
 
-5. Set the absolute URL to the Sentry root directory. The URL should not include
+6. Set the absolute URL to the Sentry root directory. The URL should not include
    a trailing slash. Replace the URL below with your application's URL::
 
         heroku config:set SENTRY_URL_PREFIX=https://sentry-example.herokuapp.com
 
-6. Deploy Sentry to Heroku::
+7. Deploy Sentry to Heroku::
 
         git push heroku master
 
@@ -49,11 +49,11 @@ Follow the steps below to get Sentry up and running on Heroku:
 
         heroku run "sentry --config=sentry.conf.py syncdb"
 
-7. Run Sentry's database migrations::
+9. Run Sentry's database migrations::
 
         heroku run "sentry --config=sentry.conf.py upgrade"
 
-8. Create a user account for yourself::
+10. Create a user account for yourself::
 
         heroku run "sentry --config=sentry.conf.py createsuperuser"
 
