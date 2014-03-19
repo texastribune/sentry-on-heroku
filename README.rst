@@ -45,6 +45,10 @@ Follow the steps below to get Sentry up and running on Heroku:
 
         git push heroku master
 
+8. Run the syncdb command to do some initial database setup::
+
+        heroku run "sentry --config=sentry.conf.py syncdb"
+
 7. Run Sentry's database migrations::
 
         heroku run "sentry --config=sentry.conf.py upgrade"
