@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import urlparse
 
 from sentry.conf.server import *
 
@@ -134,6 +135,21 @@ INSTALLED_APPS += ('django_bcrypt',)
 # The hash is also migrated when ``BCRYPT_ROUNDS`` changes.
 BCRYPT_MIGRATE = True
 
+
+# Redis
+# -----
+
+SENTRY_TSDB = 'sentry.tsdb.redis.RedisTSDB'
+redis_url = urlparse.urlparse(os.environ.get('REDISCLOUD_URL'))
+SENTRY_TSDB_OPTIONS = {
+    'hosts': {
+        0: {
+            'host': redis_url.hostname,
+            'port': redis_url.port,
+            'password': redis_url.password
+        }
+    }
+}
 
 # Social Auth
 # -----------
