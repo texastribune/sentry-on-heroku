@@ -35,6 +35,7 @@ SENTRY_URL_PREFIX = os.environ.get('SENTRY_URL_PREFIX', '')
 # Caching
 # -------
 
+SENTRY_CACHE = 'sentry.cache.redis.RedisCache'
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
