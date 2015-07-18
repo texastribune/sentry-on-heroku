@@ -12,6 +12,9 @@ sys.path.append(ROOT)
 import dj_database_url
 DATABASES = {'default': dj_database_url.config()}
 
+from gevent import monkey
+monkey.patch_all()
+
 
 # Sentry configuration
 # --------------------
