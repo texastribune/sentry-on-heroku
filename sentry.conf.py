@@ -80,6 +80,8 @@ DEFAULT_FROM_EMAIL = os.environ.get(
     'webmaster@localhost'
 )
 
+SENTRY_ADMIN_EMAIL = os.environ.get('SENTRY_ADMIN_EMAIL')
+
 
 # Security
 # --------
