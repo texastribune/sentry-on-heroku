@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import urlparse
 
 from sentry.conf.server import *
 
@@ -13,11 +14,15 @@ DATABASES = {'default': dj_database_url.config(default='sqlite:///sentry.db')}
 
 ALLOWED_HOSTS = ['*', ]
 
+from gevent import monkey
+monkey.patch_all()
+
 
 # Sentry configuration
 # --------------------
 
 SENTRY_KEY = os.environ.get('SENTRY_KEY')
+SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # Set this to false to require authentication
 SENTRY_PUBLIC = False
@@ -32,12 +37,28 @@ SENTRY_WEB_OPTIONS = {
 SENTRY_URL_PREFIX = os.environ.get('SENTRY_URL_PREFIX', '')
 
 
+# Caching
+# -------
+
+SENTRY_CACHE = 'sentry.cache.django.DjangoCache'
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    }
+}
+
 # Email configuration
 # -------------------
 
-EMAIL_HOST = 'smtp.sendgrid.net'
-EMAIL_HOST_PASSWORD = os.environ.get('SENDGRID_PASSWORD')
-EMAIL_HOST_USER = os.environ.get('SENDGRID_USERNAME')
+if 'SENDGRID_USERNAME' in os.environ:
+    EMAIL_HOST = 'smtp.sendgrid.net'
+    EMAIL_HOST_USER = os.environ.get('SENDGRID_USERNAME')
+    EMAIL_HOST_PASSWORD = os.environ.get('SENDGRID_PASSWORD')
+elif 'MANDRILL_USERNAME' in os.environ:
+    EMAIL_HOST = 'smtp.mandrillapp.com'
+    EMAIL_HOST_USER = os.environ.get('MANDRILL_USERNAME')
+    EMAIL_HOST_PASSWORD = os.environ.get('MANDRILL_APIKEY')
+
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 
@@ -55,6 +76,13 @@ EMAIL_SUBJECT_PREFIX = '[Sentry] '
 
 # The reply-to email address for outgoing mail.
 SERVER_EMAIL = os.environ.get('SERVER_EMAIL', 'root@localhost')
+
+DEFAULT_FROM_EMAIL = os.environ.get(
+    'DEFAULT_FROM_EMAIL',
+    'webmaster@localhost'
+)
+
+SENTRY_ADMIN_EMAIL = os.environ.get('SENTRY_ADMIN_EMAIL')
 
 
 # Security
@@ -114,6 +142,21 @@ INSTALLED_APPS += ('django_bcrypt',)
 # The hash is also migrated when ``BCRYPT_ROUNDS`` changes.
 BCRYPT_MIGRATE = True
 
+
+# Redis
+# -----
+
+SENTRY_TSDB = 'sentry.tsdb.redis.RedisTSDB'
+redis_url = urlparse.urlparse(os.environ.get('REDISCLOUD_URL'))
+SENTRY_TSDB_OPTIONS = {
+    'hosts': {
+        0: {
+            'host': redis_url.hostname,
+            'port': redis_url.port,
+            'password': redis_url.password
+        }
+    }
+}
 
 # Social Auth
 # -----------
