@@ -1,3 +1,5 @@
+import gevent.monkey; gevent.monkey.patch_all()
+
 import logging
 import os
 import sys
@@ -13,9 +15,6 @@ import dj_database_url
 DATABASES = {'default': dj_database_url.config(default='sqlite:///sentry.db')}
 
 ALLOWED_HOSTS = ['*', ]
-
-from gevent import monkey
-monkey.patch_all()
 
 
 # Sentry configuration
