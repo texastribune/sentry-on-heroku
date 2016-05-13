@@ -1,95 +1,187 @@
-import gevent.monkey; gevent.monkey.patch_all()
-
-import logging
-import os
-import sys
-import urlparse
-
-from sentry.conf.server import *
-
-ROOT = os.path.dirname(__file__)
-
-sys.path.append(ROOT)
+# This file is just Python, with a touch of Django which means
+# you can inherit and tweak settings to your hearts content.
+import os.path
 
 import dj_database_url
-DATABASES = {'default': dj_database_url.config(default='sqlite:///sentry.db')}
+from sentry.conf.server import *
 
-ALLOWED_HOSTS = ['*', ]
+CONF_ROOT = os.path.dirname(__file__)
 
+DATABASES = {'default': dj_database_url.config()}
 
-# Sentry configuration
-# --------------------
+# You should not change this setting after your database has been created
+# unless you have altered all schemas first
+SENTRY_USE_BIG_INTS = True
 
-SENTRY_KEY = os.environ.get('SENTRY_KEY')
-SECRET_KEY = os.environ.get('SECRET_KEY')
+# If you're expecting any kind of real traffic on Sentry, we highly recommend
+# configuring the CACHES and Redis settings
 
-# Set this to false to require authentication
-SENTRY_PUBLIC = False
+###########
+# General #
+###########
 
-SENTRY_WEB_HOST = '0.0.0.0'
-SENTRY_WEB_PORT = int(os.environ.get('PORT', 9000))
-SENTRY_WEB_OPTIONS = {
-    'workers': 3,
-    'worker_class': 'gevent',
-}
+# The administrative email for this installation.
+# Note: This will be reported back to getsentry.com as the point of contact. See
+# the beacon documentation for more information. This **must** be a string.
 
-SENTRY_URL_PREFIX = os.environ.get('SENTRY_URL_PREFIX', '')
+SENTRY_OPTIONS['system.admin-email'] = os.environ.get('SENTRY_ADMIN_EMAIL', '')
 
+# Instruct Sentry that this install intends to be run by a single organization
+# and thus various UI optimizations should be enabled.
+SENTRY_SINGLE_ORGANIZATION = True
 
-# Caching
-# -------
+# Should Sentry allow users to create new accounts?
+SENTRY_FEATURES['auth:register'] = False
 
-SENTRY_CACHE = 'sentry.cache.django.DjangoCache'
-CACHES = {
+#########
+# Redis #
+#########
+
+# Generic Redis configuration used as defaults for various things including:
+# Buffers, Quotas, TSDB
+
+redis_url = urlparse.urlparse(os.environ['REDIS_URL'])
+SENTRY_OPTIONS['redis.clusters'] = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'hosts': {
+            0: {
+                'host': redis_url.hostname,
+                'port': redis_url.port,
+                'password': redis_url.password,
+                'db': 0,
+            }
+        }
     }
 }
 
-# Email configuration
-# -------------------
+#########
+# Cache #
+#########
+
+# If you wish to use memcached, install the dependencies and adjust the config
+# as shown:
+#
+#   pip install python-memcached
+#
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+#         'LOCATION': ['127.0.0.1:11211'],
+#     }
+# }
+#
+# SENTRY_CACHE = 'sentry.cache.django.DjangoCache'
+
+SENTRY_CACHE = 'sentry.cache.redis.RedisCache'
+
+#########
+# Queue #
+#########
+
+# See https://docs.getsentry.com/on-premise/server/queue/ for more
+# information on configuring your queue broker and workers. Sentry relies
+# on a Python framework called Celery to manage queues.
+
+CELERY_ALWAYS_EAGER = False
+BROKER_URL = os.environ['REDIS_URL'] + '/0'
+
+###############
+# Rate Limits #
+###############
+
+# Rate limits apply to notification handlers and are enforced per-project
+# automatically.
+
+SENTRY_RATELIMITER = 'sentry.ratelimits.redis.RedisRateLimiter'
+
+##################
+# Update Buffers #
+##################
+
+# Buffers (combined with queueing) act as an intermediate layer between the
+# database and the storage API. They will greatly improve efficiency on large
+# numbers of the same events being sent to the API in a short amount of time.
+# (read: if you send any kind of real data to Sentry, you should enable buffers)
+
+SENTRY_BUFFER = 'sentry.buffer.redis.RedisBuffer'
+
+##########
+# Quotas #
+##########
+
+# Quotas allow you to rate limit individual projects or the Sentry install as
+# a whole.
+
+SENTRY_QUOTAS = 'sentry.quotas.redis.RedisQuota'
+
+########
+# TSDB #
+########
+
+# The TSDB is used for building charts as well as making things like per-rate
+# alerts possible.
+
+SENTRY_TSDB = 'sentry.tsdb.redis.RedisTSDB'
+
+################
+# File storage #
+################
+
+# Any Django storage backend is compatible with Sentry. For more solutions see
+# the django-storages package: https://django-storages.readthedocs.org/en/latest/
+
+SENTRY_FILESTORE = 'django.core.files.storage.FileSystemStorage'
+SENTRY_FILESTORE_OPTIONS = {
+    'location': '/tmp/sentry-files',
+}
+
+##############
+# Web Server #
+##############
+
+# You MUST configure the absolute URI root for Sentry:
+SENTRY_OPTIONS['system.url-prefix'] = os.environ['SENTRY_URL_PREFIX']
+
+SENTRY_WEB_HOST = '0.0.0.0'
+SENTRY_WEB_PORT = int(os.environ['PORT'])
+SENTRY_WEB_OPTIONS = {
+    'secure_scheme_headers': {'X-FORWARDED-PROTO': 'https'},
+    'worker_class': 'gevent',
+    'workers': 3,
+}
+
+###############
+# Mail Server #
+###############
+
+# For more information check Django's documentation:
+#  https://docs.djangoproject.com/en/1.3/topics/email/?from=olddocs#e-mail-backends
+
+SENTRY_OPTIONS['mail.backend'] = 'django.core.mail.backends.smtp.EmailBackend'
 
 if 'SENDGRID_USERNAME' in os.environ:
-    EMAIL_HOST = 'smtp.sendgrid.net'
-    EMAIL_HOST_USER = os.environ.get('SENDGRID_USERNAME')
-    EMAIL_HOST_PASSWORD = os.environ.get('SENDGRID_PASSWORD')
-elif 'MANDRILL_USERNAME' in os.environ:
-    EMAIL_HOST = 'smtp.mandrillapp.com'
-    EMAIL_HOST_USER = os.environ.get('MANDRILL_USERNAME')
-    EMAIL_HOST_PASSWORD = os.environ.get('MANDRILL_APIKEY')
+    SENTRY_OPTIONS['mail.host'] = 'smtp.sendgrid.net'
+    SENTRY_OPTIONS['mail.username'] = os.environ['SENDGRID_USERNAME']
+    SENTRY_OPTIONS['mail.password'] = os.environ['SENDGRID_PASSWORD']
+SENTRY_OPTIONS['mail.port'] = 587
+SENTRY_OPTIONS['mail.use-tls'] = True
 
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
+# The email address to send on behalf of
+SENTRY_OPTIONS['mail.from'] = os.environ.get('SERVER_EMAIL', 'root@localhost')
 
-# Disable the default admins (for email)
-ADMINS = ()
+# If you're using mailgun for inbound mail, set your API key and configure a
+# route to forward to /api/hooks/mailgun/inbound/
+MAILGUN_API_KEY = os.environ.get('MAILGUN_API_KEY', '')
 
-# Set Sentry's ADMINS to a raw list of email addresses
-SENTRY_ADMINS = os.environ.get('ADMINS', '').split(',')
-
-# The threshold level to restrict emails to.
-SENTRY_MAIL_LEVEL = logging.ERROR
-
-# The prefix to apply to outgoing emails.
-EMAIL_SUBJECT_PREFIX = '[Sentry] '
-
-# The reply-to email address for outgoing mail.
-SERVER_EMAIL = os.environ.get('SERVER_EMAIL', 'root@localhost')
-
-DEFAULT_FROM_EMAIL = os.environ.get(
-    'DEFAULT_FROM_EMAIL',
-    'webmaster@localhost'
-)
-
-SENTRY_ADMIN_EMAIL = os.environ.get('SENTRY_ADMIN_EMAIL')
-
-
-# Security
-# --------
+############
+# Security #
+############
 
 INSTALLED_APPS += ('djangosecure',)
 MIDDLEWARE_CLASSES += ('djangosecure.middleware.SecurityMiddleware',)
 
+# If you're using a reverse proxy, you should enable the X-Forwarded-Proto
+# header and uncomment the following settings
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Whether to use HTTPOnly flag on the session cookie. If this is set to `True`,
@@ -130,9 +222,9 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 # requests to HTTPS
 SECURE_SSL_REDIRECT = True
 
-
-# Bcrypt
-# ------
+##########
+# Bcrypt #
+##########
 
 INSTALLED_APPS += ('django_bcrypt',)
 
@@ -141,58 +233,31 @@ INSTALLED_APPS += ('django_bcrypt',)
 # The hash is also migrated when ``BCRYPT_ROUNDS`` changes.
 BCRYPT_MIGRATE = True
 
+###############
+# Social Auth #
+###############
 
-# Redis
-# -----
-
-SENTRY_TSDB = 'sentry.tsdb.redis.RedisTSDB'
-redis_url = urlparse.urlparse(os.environ.get('REDISCLOUD_URL'))
-SENTRY_TSDB_OPTIONS = {
-    'hosts': {
-        0: {
-            'host': redis_url.hostname,
-            'port': redis_url.port,
-            'password': redis_url.password
-        }
-    }
-}
-
-# Social Auth
-# -----------
-
-SOCIAL_AUTH_CREATE_USERS = 'SOCIAL_AUTH_CREATE_USERS' in os.environ
-
-
-# Twitter
-# -------
 TWITTER_CONSUMER_KEY = os.environ.get('TWITTER_CONSUMER_KEY')
 TWITTER_CONSUMER_SECRET = os.environ.get('TWITTER_CONSUMER_SECRET')
-
-
-# Facebook
-# --------
 
 FACEBOOK_APP_ID = os.environ.get('FACEBOOK_APP_ID')
 FACEBOOK_API_SECRET = os.environ.get('FACEBOOK_API_SECRET')
 
-
-# Google
-# ------
-
 GOOGLE_OAUTH2_CLIENT_ID = os.environ.get('GOOGLE_OAUTH2_CLIENT_ID')
 GOOGLE_OAUTH2_CLIENT_SECRET = os.environ.get('GOOGLE_OAUTH2_CLIENT_SECRET')
 
-
-# GitHub
-# ------
-
 GITHUB_APP_ID = os.environ.get('GITHUB_APP_ID')
 GITHUB_API_SECRET = os.environ.get('GITHUB_API_SECRET')
+GITHUB_ORGANIZATION = os.environ.get('GITHUB_ORGANIZATION')
 GITHUB_EXTENDED_PERMISSIONS = ['repo']
-
-
-# Bitbucket
-# ---------
 
 BITBUCKET_CONSUMER_KEY = os.environ.get('BITBUCKET_CONSUMER_KEY')
 BITBUCKET_CONSUMER_SECRET = os.environ.get('BITBUCKET_CONSUMER_SECRET')
+
+########
+# etc. #
+########
+
+# If this file ever becomes compromised, it's important to regenerate your SECRET_KEY
+# Changing this value will result in all current sessions being invalidated
+SENTRY_OPTIONS['system.secret-key'] = os.environ['SECRET_KEY']
