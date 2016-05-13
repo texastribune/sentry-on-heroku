@@ -82,7 +82,7 @@ SENTRY_CACHE = 'sentry.cache.redis.RedisCache'
 # information on configuring your queue broker and workers. Sentry relies
 # on a Python framework called Celery to manage queues.
 
-CELERY_ALWAYS_EAGER = False
+CELERY_ALWAYS_EAGER = True
 BROKER_URL = os.environ['REDIS_URL'] + '/0'
 
 ###############
