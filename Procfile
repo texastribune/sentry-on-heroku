@@ -1,1 +1,1 @@
-web: newrelic-admin run-program sentry --config=sentry.conf.py start --workers=4
+web: uwsgi --ini=uwsgi.ini --http=0.0.0.0:$PORT
